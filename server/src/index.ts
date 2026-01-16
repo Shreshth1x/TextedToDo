@@ -2,7 +2,9 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { subscriptionRoutes } from './routes/subscriptions.js';
+import { settingsRoutes } from './routes/settings.js';
 import { startReminderCron } from './services/reminder.js';
+import { startDailySMSCron } from './services/sms.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -16,6 +18,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api', subscriptionRoutes);
+app.use('/api', settingsRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -28,4 +31,7 @@ app.listen(PORT, () => {
 
   // Start the reminder cron job
   startReminderCron();
+
+  // Start the daily SMS cron job
+  startDailySMSCron();
 });

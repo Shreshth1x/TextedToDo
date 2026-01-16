@@ -6,6 +6,7 @@ import { Sidebar } from './components/Sidebar';
 import { TodoList } from './components/TodoList';
 import { TodoForm } from './components/TodoForm';
 import { TodoFilters } from './components/TodoFilters';
+import { SettingsModal } from './components/SettingsModal';
 import { useTodos } from './hooks/useTodos';
 import { useClasses } from './hooks/useClasses';
 import { useNotifications } from './hooks/useNotifications';
@@ -30,6 +31,7 @@ function AppContent() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Determine filter based on showCompleted toggle
   const effectiveFilter = showCompleted ? 'completed' : activeFilter === 'completed' ? 'all' : activeFilter;
@@ -84,6 +86,13 @@ function AppContent() {
         notificationsEnabled={notificationsEnabled}
         onToggleNotifications={toggleNotifications}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onOpenSettings={() => setShowSettings(true)}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
       />
 
       <div className="flex h-[calc(100vh-57px)]">

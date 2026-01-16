@@ -52,5 +52,22 @@ export interface PushSubscription {
   created_at: string;
 }
 
+export interface UserSettings {
+  id: string;
+  phone_number: string | null;
+  phone_verified: boolean;
+  daily_sms_enabled: boolean;
+  daily_sms_time: string;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserSettingsUpdate {
+  daily_sms_enabled?: boolean;
+  daily_sms_time?: string;
+  timezone?: string;
+}
+
 export type FilterPreset = 'all' | 'today' | 'upcoming' | 'completed';
 export type SortOption = 'due_date' | 'priority' | 'created_at';
