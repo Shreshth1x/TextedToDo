@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createClient } from '@supabase/supabase-js';
-import { sendSMS, sendVerificationCode, triggerDailySMS } from '../services/sms.js';
+import twilio from 'twilio';
+import { sendSMS, sendWhatsApp, triggerDailySMS } from '../services/sms.js';
 
 const router = Router();
 
@@ -10,18 +11,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY || ''
 );
 
-// Store verification codes temporarily (in production, use Redis or database)
-const verificationCodes: Map<string, { code: string; expires: Date }> = new Map();
+// Initialize Twilio client for Verify API
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID || '',
+  process.env.TWILIO_AUTH_TOKEN || ''
+);
+const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID || '';
 
 // Default user settings ID (single-user app pattern)
 const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
-
-/**
- * Generate a 6-digit verification code
- */
-function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 /**
  * Format phone number to E.164 format
@@ -109,7 +107,7 @@ router.put('/settings', async (req, res) => {
   }
 });
 
-// POST /api/settings/phone/send-code - Send verification code to phone
+// POST /api/settings/phone/send-code - Send verification code to phone using Twilio Verify
 router.post('/settings/phone/send-code', async (req, res) => {
   try {
     const { phone_number } = req.body;
@@ -118,21 +116,21 @@ router.post('/settings/phone/send-code', async (req, res) => {
       return res.status(400).json({ error: 'Phone number is required' });
     }
 
-    const formattedPhone = formatPhoneNumber(phone_number);
-    const code = generateVerificationCode();
-
-    // Store the code with 10-minute expiry
-    verificationCodes.set(formattedPhone, {
-      code,
-      expires: new Date(Date.now() + 10 * 60 * 1000),
-    });
-
-    // Send the verification code via SMS
-    const sent = await sendVerificationCode(formattedPhone, code);
-
-    if (!sent) {
-      return res.status(500).json({ error: 'Failed to send verification code. Check Twilio configuration.' });
+    if (!verifyServiceSid) {
+      return res.status(500).json({ error: 'Twilio Verify not configured' });
     }
+
+    const formattedPhone = formatPhoneNumber(phone_number);
+
+    // Send verification code using Twilio Verify API
+    const verification = await twilioClient.verify.v2
+      .services(verifyServiceSid)
+      .verifications.create({
+        to: formattedPhone,
+        channel: 'sms',
+      });
+
+    console.log('Twilio Verify status:', verification.status);
 
     // Update phone number in database (but not verified yet)
     await supabase
@@ -141,19 +139,24 @@ router.post('/settings/phone/send-code', async (req, res) => {
       .eq('id', DEFAULT_USER_ID);
 
     res.json({ message: 'Verification code sent', phone_number: formattedPhone });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error sending verification code:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    const errMsg = error instanceof Error ? error.message : 'Failed to send code';
+    res.status(500).json({ error: errMsg });
   }
 });
 
-// POST /api/settings/phone/verify - Verify the code
+// POST /api/settings/phone/verify - Verify the code using Twilio Verify
 router.post('/settings/phone/verify', async (req, res) => {
   try {
     const { code } = req.body;
 
     if (!code) {
       return res.status(400).json({ error: 'Verification code is required' });
+    }
+
+    if (!verifyServiceSid) {
+      return res.status(500).json({ error: 'Twilio Verify not configured' });
     }
 
     // Get the current phone number from settings
@@ -167,24 +170,21 @@ router.post('/settings/phone/verify', async (req, res) => {
       return res.status(400).json({ error: 'No phone number to verify' });
     }
 
-    const storedCode = verificationCodes.get(settings.phone_number);
+    // Verify code using Twilio Verify API
+    const verificationCheck = await twilioClient.verify.v2
+      .services(verifyServiceSid)
+      .verificationChecks.create({
+        to: settings.phone_number,
+        code: code,
+      });
 
-    if (!storedCode) {
-      return res.status(400).json({ error: 'No verification code found. Please request a new one.' });
-    }
+    console.log('Twilio Verify check status:', verificationCheck.status);
 
-    if (new Date() > storedCode.expires) {
-      verificationCodes.delete(settings.phone_number);
-      return res.status(400).json({ error: 'Verification code expired. Please request a new one.' });
-    }
-
-    if (storedCode.code !== code) {
+    if (verificationCheck.status !== 'approved') {
       return res.status(400).json({ error: 'Invalid verification code' });
     }
 
     // Code is valid - mark phone as verified
-    verificationCodes.delete(settings.phone_number);
-
     const { data, error } = await supabase
       .from('user_settings')
       .update({ phone_verified: true })
@@ -197,9 +197,10 @@ router.post('/settings/phone/verify', async (req, res) => {
     }
 
     res.json({ message: 'Phone number verified successfully', settings: data });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error verifying code:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    const errMsg = error instanceof Error ? error.message : 'Invalid code';
+    res.status(500).json({ error: errMsg });
   }
 });
 
@@ -228,7 +229,7 @@ router.delete('/settings/phone', async (_req, res) => {
   }
 });
 
-// POST /api/settings/test-sms - Send a test SMS
+// POST /api/settings/test-sms - Send a test WhatsApp message
 router.post('/settings/test-sms', async (_req, res) => {
   try {
     // Get current settings
@@ -246,18 +247,18 @@ router.post('/settings/test-sms', async (_req, res) => {
       return res.status(400).json({ error: 'Phone number not verified' });
     }
 
-    const sent = await sendSMS(
+    const sent = await sendWhatsApp(
       settings.phone_number,
-      '✅ TextedToDo Test Message\n\nYour SMS notifications are working! You\'ll receive daily summaries at your scheduled time.'
+      '✅ TextedToDo Test Message\n\nYour WhatsApp notifications are working! You\'ll receive daily summaries at your scheduled time.'
     );
 
     if (!sent) {
-      return res.status(500).json({ error: 'Failed to send test SMS' });
+      return res.status(500).json({ error: 'Failed to send test WhatsApp' });
     }
 
-    res.json({ message: 'Test SMS sent successfully' });
+    res.json({ message: 'Test WhatsApp sent successfully' });
   } catch (error) {
-    console.error('Error sending test SMS:', error);
+    console.error('Error sending test WhatsApp:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

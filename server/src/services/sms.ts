@@ -57,7 +57,43 @@ function formatTodosMessage(todos: Todo[]): string {
 }
 
 /**
- * Send an SMS message via Twilio
+ * Send a WhatsApp message via Twilio
+ */
+export async function sendWhatsApp(to: string, message: string): Promise<boolean> {
+  if (!twilioClient) {
+    console.error('Twilio client not initialized. Check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.');
+    return false;
+  }
+
+  const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+  if (!whatsappNumber) {
+    console.error('TWILIO_WHATSAPP_NUMBER not configured.');
+    return false;
+  }
+
+  try {
+    console.log(`Attempting to send WhatsApp from ${whatsappNumber} to ${to}`);
+    const result = await twilioClient.messages.create({
+      body: message,
+      from: `whatsapp:${whatsappNumber}`,
+      to: `whatsapp:${to}`,
+    });
+    console.log(`WhatsApp sent successfully. SID: ${result.sid}`);
+    return true;
+  } catch (error: unknown) {
+    console.error('Error sending WhatsApp:', error);
+    if (error && typeof error === 'object') {
+      const twilioError = error as { code?: number; message?: string; moreInfo?: string };
+      console.error('Twilio Error Code:', twilioError.code);
+      console.error('Twilio Error Message:', twilioError.message);
+      console.error('More Info:', twilioError.moreInfo);
+    }
+    return false;
+  }
+}
+
+/**
+ * Send an SMS message via Twilio (fallback, may be blocked by A2P)
  */
 export async function sendSMS(to: string, message: string): Promise<boolean> {
   if (!twilioClient) {
@@ -82,7 +118,6 @@ export async function sendSMS(to: string, message: string): Promise<boolean> {
     return true;
   } catch (error: unknown) {
     console.error('Error sending SMS:', error);
-    // Log detailed Twilio error info
     if (error && typeof error === 'object') {
       const twilioError = error as { code?: number; message?: string; moreInfo?: string };
       console.error('Twilio Error Code:', twilioError.code);
@@ -175,15 +210,15 @@ async function sendDailySMSSummaries() {
   const todos = await getTodaysTodos();
   const message = formatTodosMessage(todos);
 
-  // Send to each user
+  // Send to each user via WhatsApp
   for (const user of settings as UserSettings[]) {
     if (user.phone_number) {
-      console.log(`Sending daily summary to ${user.phone_number}...`);
-      const success = await sendSMS(user.phone_number, message);
+      console.log(`Sending daily summary via WhatsApp to ${user.phone_number}...`);
+      const success = await sendWhatsApp(user.phone_number, message);
       if (success) {
-        console.log(`✓ Daily SMS sent to ${user.phone_number}`);
+        console.log(`✓ Daily WhatsApp sent to ${user.phone_number}`);
       } else {
-        console.log(`✗ Failed to send SMS to ${user.phone_number}`);
+        console.log(`✗ Failed to send WhatsApp to ${user.phone_number}`);
       }
     }
   }
