@@ -72,6 +72,7 @@ export async function sendSMS(to: string, message: string): Promise<boolean> {
   }
 
   try {
+    console.log(`Attempting to send SMS from ${fromNumber} to ${to}`);
     const result = await twilioClient.messages.create({
       body: message,
       from: fromNumber,
@@ -79,8 +80,15 @@ export async function sendSMS(to: string, message: string): Promise<boolean> {
     });
     console.log(`SMS sent successfully. SID: ${result.sid}`);
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error sending SMS:', error);
+    // Log detailed Twilio error info
+    if (error && typeof error === 'object') {
+      const twilioError = error as { code?: number; message?: string; moreInfo?: string };
+      console.error('Twilio Error Code:', twilioError.code);
+      console.error('Twilio Error Message:', twilioError.message);
+      console.error('More Info:', twilioError.moreInfo);
+    }
     return false;
   }
 }
