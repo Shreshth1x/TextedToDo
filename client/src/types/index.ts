@@ -5,8 +5,15 @@ export interface Class {
   id: string;
   name: string;
   color: string;
+  icon?: string;
+  description?: string;
   sort_order: number;
   created_at: string;
+}
+
+export interface TimeSlot {
+  hour: number;
+  todos: Todo[];
 }
 
 export interface Todo {
@@ -42,6 +49,8 @@ export interface TodoFormData {
 export interface ClassFormData {
   name: string;
   color?: string;
+  icon?: string;
+  description?: string;
 }
 
 export interface PushSubscription {

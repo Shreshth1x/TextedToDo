@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { subscribeToPush, unsubscribeFromPush } from '../api/notifications';
 
+function checkPushSupport() {
+  return typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window;
+}
+
 export function useNotifications() {
-  const [isSupported, setIsSupported] = useState(false);
+  const [isSupported] = useState(() => checkPushSupport());
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Check if push notifications are supported
-    const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-    setIsSupported(supported);
-
     // Check current permission status
-    if (supported && Notification.permission === 'granted') {
+    if (isSupported && Notification.permission === 'granted') {
       // Check if we have an active subscription
       navigator.serviceWorker.ready.then((registration) => {
         registration.pushManager.getSubscription().then((subscription) => {
@@ -20,7 +23,7 @@ export function useNotifications() {
         });
       });
     }
-  }, []);
+  }, [isSupported]);
 
   const enable = useCallback(async () => {
     if (!isSupported) {

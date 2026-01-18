@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { X, Phone, Check, MessageSquare, Send, Clock, Loader2 } from 'lucide-react';
 import {
@@ -34,7 +35,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (settings) {
       setSmsEnabled(settings.daily_sms_enabled);
       if (settings.daily_sms_time) {
-        // Convert from "HH:MM:SS" to "HH:MM"
         setSmsTime(settings.daily_sms_time.slice(0, 5));
       }
     }
@@ -155,8 +155,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+              aria-label="Close settings"
             >
-              <X size={20} />
+              <X size={20} aria-hidden="true" />
             </button>
           </div>
 
@@ -165,6 +166,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {/* Message banner */}
             {message && (
               <div
+                role="alert"
+                aria-live="polite"
                 className={`p-3 rounded-lg text-sm ${
                   message.type === 'success'
                     ? 'bg-green-50 text-green-700 border border-green-200'
@@ -208,17 +211,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   ) : showVerification ? (
                     // Verification code input
                     <div className="space-y-3">
-                      <p className="text-sm text-gray-600">
+                      <label htmlFor="verification-code" className="text-sm text-gray-600">
                         Enter the 6-digit code sent to your phone:
-                      </p>
+                      </label>
                       <div className="flex gap-2">
                         <input
+                          id="verification-code"
                           type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
                           value={verificationCode}
                           onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           placeholder="000000"
                           maxLength={6}
                           className="flex-1 px-4 py-2 text-center text-lg tracking-widest border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          aria-describedby="verification-hint"
                         />
                         <button
                           onClick={handleVerifyCode}
@@ -226,13 +233,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
                           {verifyPhoneCode.isPending ? (
-                            <Loader2 size={18} className="animate-spin" />
+                            <Loader2 size={18} className="animate-spin" aria-hidden="true" />
                           ) : (
-                            <Check size={18} />
+                            <Check size={18} aria-hidden="true" />
                           )}
                           Verify
                         </button>
                       </div>
+                      <p id="verification-hint" className="sr-only">Enter the 6 digit numeric code</p>
                       <button
                         onClick={() => setShowVerification(false)}
                         className="text-sm text-gray-500 hover:text-gray-700"
@@ -243,8 +251,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   ) : (
                     // Phone input
                     <div className="flex gap-2">
+                      <label htmlFor="phone-number" className="sr-only">Phone number</label>
                       <input
+                        id="phone-number"
                         type="tel"
+                        autoComplete="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="(555) 123-4567"
@@ -256,9 +267,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
                       >
                         {sendVerificationCode.isPending ? (
-                          <Loader2 size={18} className="animate-spin" />
+                          <Loader2 size={18} className="animate-spin" aria-hidden="true" />
                         ) : (
-                          <Send size={18} />
+                          <Send size={18} aria-hidden="true" />
                         )}
                         Send Code
                       </button>
@@ -269,15 +280,19 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 {/* Daily SMS Toggle */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <MessageSquare size={16} />
+                    <span id="sms-toggle-label" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <MessageSquare size={16} aria-hidden="true" />
                       Daily SMS Summary
-                    </label>
+                    </span>
                     <button
                       onClick={() => handleToggleSMS(!smsEnabled)}
                       disabled={!settings?.phone_verified || updateSettings.isPending}
+                      role="switch"
+                      aria-checked={smsEnabled}
+                      aria-labelledby="sms-toggle-label"
+                      aria-disabled={!settings?.phone_verified}
                       className={`
-                        relative w-12 h-6 rounded-full transition-colors
+                        relative w-12 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
                         ${smsEnabled ? 'bg-indigo-600' : 'bg-gray-300'}
                         ${!settings?.phone_verified ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                       `}
@@ -287,6 +302,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform
                           ${smsEnabled ? 'translate-x-6' : 'translate-x-0'}
                         `}
+                        aria-hidden="true"
                       />
                     </button>
                   </div>

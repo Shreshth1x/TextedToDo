@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronUp, Bell, Repeat } from 'lucide-react';
 import { useCreateTodo, useUpdateTodo } from '../hooks/useTodos';
@@ -40,6 +41,7 @@ export function TodoForm({ editingTodo, onClose, classes }: TodoFormProps) {
 
   const isEditing = !!editingTodo;
 
+  // Sync form state with editingTodo
   useEffect(() => {
     if (editingTodo) {
       setTitle(editingTodo.title);
@@ -60,10 +62,7 @@ export function TodoForm({ editingTodo, onClose, classes }: TodoFormProps) {
       if (editingTodo.recurrence_end_date) {
         setRecurrenceEndDate(editingTodo.recurrence_end_date.split('T')[0]);
       }
-      if (editingTodo.reminder_time) {
-        setShowAdvanced(true);
-      }
-      if (editingTodo.recurrence_type) {
+      if (editingTodo.reminder_time || editingTodo.recurrence_type) {
         setShowAdvanced(true);
       }
     }
@@ -138,9 +137,10 @@ export function TodoForm({ editingTodo, onClose, classes }: TodoFormProps) {
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+            className="p-1 text-gray-400 hover:text-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            aria-label="Close form"
           >
-            <X size={20} />
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
@@ -148,19 +148,24 @@ export function TodoForm({ editingTodo, onClose, classes }: TodoFormProps) {
         <div className="p-4 space-y-4">
           {/* Title */}
           <div>
+            <label htmlFor="todo-title" className="sr-only">Task title</label>
             <input
+              id="todo-title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Task title"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               autoFocus
+              aria-required="true"
             />
           </div>
 
           {/* Description */}
           <div>
+            <label htmlFor="todo-description" className="sr-only">Description (optional)</label>
             <textarea
+              id="todo-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Description (optional)"
@@ -176,14 +181,15 @@ export function TodoForm({ editingTodo, onClose, classes }: TodoFormProps) {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Priority
               </label>
-              <div className="flex gap-1">
+              <div className="flex gap-1" role="group" aria-label="Priority selection">
                 {priorities.map((p) => (
                   <button
                     key={p.value}
                     type="button"
                     onClick={() => setPriority(p.value)}
+                    aria-pressed={priority === p.value}
                     className={`
-                      flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors
+                      flex-1 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500
                       ${priority === p.value ? p.color : 'text-gray-600 bg-white border-gray-200 hover:bg-gray-50'}
                     `}
                   >

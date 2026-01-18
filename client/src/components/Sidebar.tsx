@@ -42,6 +42,7 @@ export function Sidebar({
         <div
           className="fixed inset-0 bg-black/20 z-20 md:hidden"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 

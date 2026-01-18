@@ -11,14 +11,14 @@ interface ClassListProps {
 }
 
 const DEFAULT_COLORS = [
-  '#6366f1', // indigo
-  '#ec4899', // pink
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#ef4444', // red
-  '#06b6d4', // cyan
+  { hex: '#6366f1', name: 'Indigo' },
+  { hex: '#ec4899', name: 'Pink' },
+  { hex: '#10b981', name: 'Emerald' },
+  { hex: '#f59e0b', name: 'Amber' },
+  { hex: '#3b82f6', name: 'Blue' },
+  { hex: '#8b5cf6', name: 'Violet' },
+  { hex: '#ef4444', name: 'Red' },
+  { hex: '#06b6d4', name: 'Cyan' },
 ];
 
 export function ClassList({
@@ -29,7 +29,7 @@ export function ClassList({
 }: ClassListProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newClassName, setNewClassName] = useState('');
-  const [selectedColor, setSelectedColor] = useState(DEFAULT_COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState(DEFAULT_COLORS[0].hex);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export function ClassList({
         color: selectedColor,
       });
       setNewClassName('');
-      setSelectedColor(DEFAULT_COLORS[0]);
+      setSelectedColor(DEFAULT_COLORS[0].hex);
       setIsAdding(false);
     } catch (error) {
       console.error('Failed to create class:', error);
@@ -118,28 +118,37 @@ export function ClassList({
       {/* Add class form */}
       {isAdding && (
         <form onSubmit={handleAddClass} className="mb-2 space-y-2">
+          <label htmlFor="new-class-name" className="sr-only">Class name</label>
           <input
+            id="new-class-name"
             type="text"
             value={newClassName}
             onChange={(e) => setNewClassName(e.target.value)}
             placeholder="Class name"
             className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             autoFocus
+            aria-required="true"
           />
-          <div className="flex flex-wrap gap-1">
-            {DEFAULT_COLORS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => setSelectedColor(color)}
-                className={`w-5 h-5 rounded-full border-2 ${
-                  selectedColor === color ? 'border-gray-800' : 'border-transparent'
-                }`}
-                style={{ backgroundColor: color }}
-                aria-label={`Select color ${color}`}
-              />
-            ))}
-          </div>
+          <fieldset>
+            <legend className="sr-only">Select a color</legend>
+            <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Class color">
+              {DEFAULT_COLORS.map((color) => (
+                <button
+                  key={color.hex}
+                  type="button"
+                  onClick={() => setSelectedColor(color.hex)}
+                  className={`w-5 h-5 rounded-full border-2 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 ${
+                    selectedColor === color.hex ? 'border-gray-800' : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: color.hex }}
+                  aria-label={color.name}
+                  aria-pressed={selectedColor === color.hex}
+                  role="radio"
+                  aria-checked={selectedColor === color.hex}
+                />
+              ))}
+            </div>
+          </fieldset>
           <div className="flex gap-2">
             <button
               type="submit"
@@ -174,12 +183,15 @@ export function ClassList({
                 }}
                 className="flex gap-2"
               >
+                <label htmlFor={`edit-class-${cls.id}`} className="sr-only">Edit class name</label>
                 <input
+                  id={`edit-class-${cls.id}`}
                   type="text"
                   value={editingName}
                   onChange={(e) => setEditingName(e.target.value)}
                   className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   autoFocus
+                  aria-required="true"
                 />
                 <button
                   type="submit"
@@ -219,8 +231,15 @@ export function ClassList({
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpenId(menuOpenId === cls.id ? null : cls.id)}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="Class options"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape' && menuOpenId === cls.id) {
+                        setMenuOpenId(null);
+                      }
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 focus:text-gray-600 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                    aria-label={`Options for ${cls.name}`}
+                    aria-expanded={menuOpenId === cls.id}
+                    aria-haspopup="menu"
                   >
                     <MoreHorizontal size={16} />
                   </button>
@@ -230,20 +249,32 @@ export function ClassList({
                       <div
                         className="fixed inset-0"
                         onClick={() => setMenuOpenId(null)}
+                        aria-hidden="true"
                       />
-                      <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                      <div
+                        className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
+                        role="menu"
+                        aria-label={`${cls.name} actions`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setMenuOpenId(null);
+                          }
+                        }}
+                      >
                         <button
                           onClick={() => startEditing(cls)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none"
+                          role="menuitem"
                         >
-                          <Pencil size={14} />
+                          <Pencil size={14} aria-hidden="true" />
                           Edit
                         </button>
                         <button
                           onClick={() => handleDeleteClass(cls.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+                          role="menuitem"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={14} aria-hidden="true" />
                           Delete
                         </button>
                       </div>
