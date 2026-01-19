@@ -22,7 +22,7 @@ export function AppLayout({
   onCloseRightSidebar,
 }: AppLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen">
       {/* Header */}
       {header}
 
@@ -30,7 +30,7 @@ export function AppLayout({
         {/* Mobile overlay for left sidebar */}
         {leftSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/20 z-20 lg:hidden"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 lg:hidden"
             onClick={onCloseLeftSidebar}
             aria-hidden="true"
           />
@@ -40,8 +40,8 @@ export function AppLayout({
         <aside
           className={`
             fixed lg:static inset-y-0 left-0 z-30
-            w-72 bg-white border-r border-gray-200
-            transform transition-transform duration-200 ease-in-out
+            w-72 glass border-r border-white/20 shadow-xl
+            transform transition-all duration-300 ease-out
             ${leftSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             overflow-y-auto
           `}
@@ -57,7 +57,7 @@ export function AppLayout({
         {/* Mobile overlay for right sidebar */}
         {rightSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/20 z-20 lg:hidden"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 lg:hidden"
             onClick={onCloseRightSidebar}
             aria-hidden="true"
           />
@@ -67,8 +67,8 @@ export function AppLayout({
         <aside
           className={`
             fixed lg:static inset-y-0 right-0 z-30
-            w-72 bg-white border-l border-gray-200
-            transform transition-transform duration-200 ease-in-out
+            w-72 glass border-l border-white/20 shadow-xl
+            transform transition-all duration-300 ease-out
             ${rightSidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
             overflow-y-auto
           `}

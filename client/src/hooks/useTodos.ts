@@ -7,6 +7,7 @@ import {
   toggleTodoComplete,
   deleteTodo,
   createRecurringTodo,
+  getUndatedTodos,
 } from '../api/todos';
 import type { Todo, TodoFormData, Priority, FilterPreset, SortOption } from '../types';
 
@@ -19,6 +20,7 @@ export function useTodos(
   return useQuery({
     queryKey: ['todos', filter, classId, priority, sortBy],
     queryFn: () => getTodos(filter, classId, priority, sortBy),
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
@@ -36,6 +38,7 @@ export function useCreateTodo() {
   return useMutation({
     mutationFn: (todo: TodoFormData) => createTodo(todo),
     onSuccess: () => {
+      // Invalidate all todo queries including undated and analytics
       queryClient.invalidateQueries({ queryKey: ['todos'] });
     },
   });
@@ -81,5 +84,13 @@ export function useDeleteTodo() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['todos'] });
     },
+  });
+}
+
+export function useUndatedTodos() {
+  return useQuery({
+    queryKey: ['todos', 'undated'],
+    queryFn: getUndatedTodos,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }

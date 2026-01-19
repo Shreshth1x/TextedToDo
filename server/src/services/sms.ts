@@ -1,16 +1,5 @@
 import cron from 'node-cron';
-import twilio from 'twilio';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_KEY || ''
-);
-
-// Initialize Twilio client (will be null if credentials not configured)
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
+import { getSupabase, getTwilioClient, isTwilioConfigured } from '../lib/clients.js';
 
 interface Todo {
   id: string;
@@ -106,6 +95,7 @@ function formatTodosMessage(grouped: GroupedTodos): string {
  * Send a WhatsApp message via Twilio
  */
 export async function sendWhatsApp(to: string, message: string): Promise<boolean> {
+  const twilioClient = getTwilioClient();
   if (!twilioClient) {
     console.error('Twilio client not initialized. Check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.');
     return false;
@@ -142,6 +132,7 @@ export async function sendWhatsApp(to: string, message: string): Promise<boolean
  * Send an SMS message via Twilio (fallback, may be blocked by A2P)
  */
 export async function sendSMS(to: string, message: string): Promise<boolean> {
+  const twilioClient = getTwilioClient();
   if (!twilioClient) {
     console.error('Twilio client not initialized. Check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.');
     return false;
@@ -187,7 +178,7 @@ export async function sendVerificationCode(phoneNumber: string, code: string): P
  */
 async function getGroupedTodos(): Promise<GroupedTodos> {
   const now = new Date();
-  
+
   // Define date boundaries
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -199,7 +190,7 @@ async function getGroupedTodos(): Promise<GroupedTodos> {
   upcomingEnd.setDate(upcomingEnd.getDate() + 7); // Next 7 days
 
   // Get all incomplete todos with due dates within the next week or overdue
-  const { data: todos, error } = await supabase
+  const { data: todos, error } = await getSupabase()
     .from('todos')
     .select('id, title, priority, due_date, classes(name)')
     .eq('completed', false)
@@ -268,7 +259,7 @@ function isTimeToSend(userTime: string): boolean {
  */
 async function checkAndSendDailySummaries() {
   // Get user settings where SMS is enabled
-  const { data: settings, error: settingsError } = await supabase
+  const { data: settings, error: settingsError } = await getSupabase()
     .from('user_settings')
     .select('*')
     .eq('daily_sms_enabled', true)
@@ -310,7 +301,7 @@ async function sendDailySMSSummaries() {
   console.log('Starting daily SMS summary job (manual trigger)...');
 
   // Get user settings where SMS is enabled
-  const { data: settings, error: settingsError } = await supabase
+  const { data: settings, error: settingsError } = await getSupabase()
     .from('user_settings')
     .select('*')
     .eq('daily_sms_enabled', true)
@@ -352,17 +343,17 @@ async function sendDailySMSSummaries() {
  * Runs every minute to check if any user's scheduled time has arrived
  */
 export function startDailySMSCron() {
-  if (!twilioClient) {
+  if (!isTwilioConfigured()) {
     console.log('⚠️ Twilio not configured. Daily SMS cron job will not send messages.');
     console.log('   Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to enable.');
   }
 
-  // Run every minute to check for scheduled times
-  cron.schedule('* * * * *', () => {
+  // Run every 5 minutes to check for scheduled times (reduces DB queries by 80%)
+  cron.schedule('*/5 * * * *', () => {
     checkAndSendDailySummaries();
   });
 
-  console.log('📱 Daily SMS cron job started (checks every minute for scheduled times)');
+  console.log('📱 Daily SMS cron job started (checks every 5 minutes for scheduled times)');
 }
 
 /**

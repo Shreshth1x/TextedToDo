@@ -5,9 +5,10 @@ import { startOfDay, endOfDay, isBefore } from 'date-fns';
 import type { Todo } from '../types';
 
 async function getTodosForAnalytics(): Promise<Todo[]> {
+  // Fetch all todos - simpler query that won't hang
   const { data, error } = await supabase
     .from('todos')
-    .select('*, classes(*)')
+    .select('id, title, due_date, completed, priority, class_id, classes(id, name, color)')
     .order('due_date', { ascending: true });
 
   if (error) {
@@ -21,6 +22,7 @@ export function useAnalytics(selectedDate: Date) {
   const { data: allTodos = [], isLoading } = useQuery({
     queryKey: ['todos', 'analytics'],
     queryFn: getTodosForAnalytics,
+    staleTime: 1000 * 60 * 10, // 10 minutes - analytics can be slightly stale
   });
 
   const analytics = useMemo(() => {

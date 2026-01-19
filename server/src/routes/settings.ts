@@ -1,21 +1,8 @@
 import { Router } from 'express';
-import { createClient } from '@supabase/supabase-js';
-import twilio from 'twilio';
+import { getSupabase, getTwilioClient } from '../lib/clients.js';
 import { sendSMS, sendWhatsApp, triggerDailySMS } from '../services/sms.js';
 
 const router = Router();
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_KEY || ''
-);
-
-// Initialize Twilio client for Verify API
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID || '',
-  process.env.TWILIO_AUTH_TOKEN || ''
-);
 const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID || '';
 
 // Default user settings ID (single-user app pattern)
@@ -49,6 +36,7 @@ function formatPhoneNumber(phone: string): string {
 // GET /api/settings - Get user settings
 router.get('/settings', async (_req, res) => {
   try {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('user_settings')
       .select('*')
@@ -89,7 +77,7 @@ router.put('/settings', async (req, res) => {
     if (daily_sms_time) updates.daily_sms_time = daily_sms_time;
     if (timezone) updates.timezone = timezone;
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('user_settings')
       .update(updates)
       .eq('id', DEFAULT_USER_ID)
@@ -121,6 +109,11 @@ router.post('/settings/phone/send-code', async (req, res) => {
     }
 
     const formattedPhone = formatPhoneNumber(phone_number);
+    const twilioClient = getTwilioClient();
+
+    if (!twilioClient) {
+      return res.status(500).json({ error: 'Twilio not configured' });
+    }
 
     // Send verification code using Twilio Verify API
     const verification = await twilioClient.verify.v2
@@ -133,7 +126,7 @@ router.post('/settings/phone/send-code', async (req, res) => {
     console.log('Twilio Verify status:', verification.status);
 
     // Update phone number in database (but not verified yet)
-    await supabase
+    await getSupabase()
       .from('user_settings')
       .update({ phone_number: formattedPhone, phone_verified: false })
       .eq('id', DEFAULT_USER_ID);
@@ -159,8 +152,13 @@ router.post('/settings/phone/verify', async (req, res) => {
       return res.status(500).json({ error: 'Twilio Verify not configured' });
     }
 
+    const twilioClient = getTwilioClient();
+    if (!twilioClient) {
+      return res.status(500).json({ error: 'Twilio not configured' });
+    }
+
     // Get the current phone number from settings
-    const { data: settings } = await supabase
+    const { data: settings } = await getSupabase()
       .from('user_settings')
       .select('phone_number')
       .eq('id', DEFAULT_USER_ID)
@@ -185,7 +183,7 @@ router.post('/settings/phone/verify', async (req, res) => {
     }
 
     // Code is valid - mark phone as verified
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('user_settings')
       .update({ phone_verified: true })
       .eq('id', DEFAULT_USER_ID)
@@ -207,12 +205,12 @@ router.post('/settings/phone/verify', async (req, res) => {
 // DELETE /api/settings/phone - Remove phone number
 router.delete('/settings/phone', async (_req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('user_settings')
-      .update({ 
-        phone_number: null, 
+      .update({
+        phone_number: null,
         phone_verified: false,
-        daily_sms_enabled: false 
+        daily_sms_enabled: false
       })
       .eq('id', DEFAULT_USER_ID)
       .select()
@@ -233,7 +231,7 @@ router.delete('/settings/phone', async (_req, res) => {
 router.post('/settings/test-sms', async (_req, res) => {
   try {
     // Get current settings
-    const { data: settings } = await supabase
+    const { data: settings } = await getSupabase()
       .from('user_settings')
       .select('phone_number, phone_verified')
       .eq('id', DEFAULT_USER_ID)

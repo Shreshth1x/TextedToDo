@@ -1,26 +1,24 @@
 import { Router } from 'express';
 import webpush from 'web-push';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase } from '../lib/clients.js';
 
 const router = Router();
 
-// Initialize web-push with VAPID keys
+// Initialize web-push with VAPID keys (lazy, only if configured)
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+let vapidConfigured = false;
 
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    'mailto:notifications@textedtodo.app',
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-  );
+function ensureVapidConfigured() {
+  if (!vapidConfigured && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      'mailto:notifications@textedtodo.app',
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+    vapidConfigured = true;
+  }
 }
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_KEY || ''
-);
 
 // GET /api/vapid-key - Get the VAPID public key
 router.get('/vapid-key', (_req, res) => {
@@ -33,6 +31,7 @@ router.get('/vapid-key', (_req, res) => {
 // POST /api/subscriptions - Register a push subscription
 router.post('/subscriptions', async (req, res) => {
   try {
+    ensureVapidConfigured();
     const { subscription } = req.body;
 
     if (!subscription || !subscription.endpoint || !subscription.keys) {
@@ -43,7 +42,7 @@ router.post('/subscriptions', async (req, res) => {
     const { p256dh, auth } = keys;
 
     // Store the subscription in Supabase
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('push_subscriptions')
       .upsert(
         { endpoint, p256dh, auth },
@@ -71,7 +70,7 @@ router.delete('/subscriptions', async (req, res) => {
       return res.status(400).json({ error: 'Endpoint required' });
     }
 
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('push_subscriptions')
       .delete()
       .eq('endpoint', endpoint);

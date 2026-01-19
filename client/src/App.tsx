@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './layouts/AppLayout';
 import { NewHeader } from './components/NewHeader';
 import { TimelineView } from './components/timeline/TimelineView';
 import { QuickTaskForm } from './components/timeline/QuickTaskForm';
 import { ClassesSidebar } from './components/classes/ClassesSidebar';
-import { AnalyticsSidebar } from './components/analytics/AnalyticsSidebar';
 import { TodoForm } from './components/TodoForm';
 import { SettingsModal } from './components/SettingsModal';
 import { DragDropProvider } from './context/DragDropContext';
@@ -13,6 +12,28 @@ import { useClasses } from './hooks/useClasses';
 import { useNotifications } from './hooks/useNotifications';
 import { useRealtimeSubscription } from './hooks/useRealtime';
 import type { Todo, Class } from './types';
+
+// Lazy load the heavy AnalyticsSidebar (contains recharts)
+const AnalyticsSidebar = lazy(() =>
+  import('./components/analytics/AnalyticsSidebar').then((m) => ({
+    default: m.AnalyticsSidebar,
+  }))
+);
+
+// Simple loading placeholder for analytics sidebar
+function AnalyticsSidebarFallback() {
+  return (
+    <div className="p-4 animate-pulse">
+      <div className="h-6 bg-gray-200 rounded w-24 mb-4" />
+      <div className="h-32 bg-gray-200 rounded mb-4" />
+      <div className="space-y-2">
+        <div className="h-4 bg-gray-200 rounded w-full" />
+        <div className="h-4 bg-gray-200 rounded w-3/4" />
+        <div className="h-4 bg-gray-200 rounded w-1/2" />
+      </div>
+    </div>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +54,7 @@ function AppContent() {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showNewTask, setShowNewTask] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [quickTaskData, setQuickTaskData] = useState<QuickTaskData | null>(null);
 
@@ -70,6 +92,7 @@ function AppContent() {
             notificationsEnabled={notificationsEnabled}
             onToggleNotifications={toggleNotifications}
             onOpenSettings={() => setShowSettings(true)}
+            onOpenNewTask={() => setShowNewTask(true)}
             leftSidebarOpen={leftSidebarOpen}
             rightSidebarOpen={rightSidebarOpen}
             onToggleLeftSidebar={() => setLeftSidebarOpen(!leftSidebarOpen)}
@@ -85,10 +108,12 @@ function AppContent() {
           />
         }
         rightSidebar={
-          <AnalyticsSidebar
-            selectedDate={selectedDate}
-            onTaskClick={handleEditTodo}
-          />
+          <Suspense fallback={<AnalyticsSidebarFallback />}>
+            <AnalyticsSidebar
+              selectedDate={selectedDate}
+              onTaskClick={handleEditTodo}
+            />
+          </Suspense>
         }
       />
 
@@ -105,6 +130,18 @@ function AppContent() {
             <TodoForm
               editingTodo={editingTodo}
               onClose={handleCloseEditForm}
+              classes={classes}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* New Todo Form Modal */}
+      {showNewTask && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg">
+            <TodoForm
+              onClose={() => setShowNewTask(false)}
               classes={classes}
             />
           </div>

@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { isSameDay } from 'date-fns';
 
 interface CurrentTimeIndicatorProps {
   selectedDate: Date;
+  startHour?: number;
 }
 
-export function CurrentTimeIndicator({ selectedDate }: CurrentTimeIndicatorProps) {
+// Height of each hour slot in pixels (matches HourSlot min-height)
+const HOUR_SLOT_HEIGHT = 60;
+
+export function CurrentTimeIndicator({ selectedDate, startHour = 0 }: CurrentTimeIndicatorProps) {
   const [now, setNow] = useState(new Date());
+  const indicatorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -16,16 +21,26 @@ export function CurrentTimeIndicator({ selectedDate }: CurrentTimeIndicatorProps
     return () => clearInterval(interval);
   }, []);
 
+  // Scroll the indicator into view on mount
+  useEffect(() => {
+    if (indicatorRef.current && isSameDay(selectedDate, now)) {
+      indicatorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [selectedDate]);
+
   if (!isSameDay(selectedDate, now)) {
     return null;
   }
 
   const hours = now.getHours();
   const minutes = now.getMinutes();
-  const topPosition = (hours * 80) + (minutes / 60 * 80) + 8; // 80px per hour + 8px offset for padding
+
+  // Calculate position based on hour slot heights
+  const topPosition = (hours - startHour) * HOUR_SLOT_HEIGHT + (minutes / 60) * HOUR_SLOT_HEIGHT;
 
   return (
     <div
+      ref={indicatorRef}
       className="absolute left-0 right-0 z-10 pointer-events-none"
       style={{ top: `${topPosition}px` }}
     >

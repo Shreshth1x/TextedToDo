@@ -12,6 +12,7 @@ export function useClasses() {
   return useQuery({
     queryKey: ['classes'],
     queryFn: getClasses,
+    staleTime: 1000 * 60 * 5, // 5 minutes - classes rarely change
   });
 }
 

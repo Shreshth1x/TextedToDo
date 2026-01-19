@@ -188,3 +188,18 @@ export async function createRecurringTodo(todo: Todo): Promise<Todo | null> {
 
   return data as Todo;
 }
+
+export async function getUndatedTodos(): Promise<Todo[]> {
+  const { data, error } = await supabase
+    .from('todos')
+    .select('*, classes(*)')
+    .is('due_date', null)
+    .eq('completed', false)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as Todo[];
+}

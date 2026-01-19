@@ -46,8 +46,6 @@ export async function createClass(classData: ClassFormData): Promise<Class> {
     .insert({
       name: classData.name,
       color: classData.color || '#6366f1',
-      icon: classData.icon || '📚',
-      description: classData.description || null,
       sort_order: nextSortOrder,
     })
     .select()

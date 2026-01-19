@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp, Bell, Repeat } from 'lucide-react';
-import { useCreateTodo, useUpdateTodo } from '../hooks/useTodos';
+import { X, ChevronDown, ChevronUp, Bell, Repeat, Trash2 } from 'lucide-react';
+import { useCreateTodo, useUpdateTodo, useDeleteTodo } from '../hooks/useTodos';
 import type { Todo, TodoFormData, Priority, RecurrenceType, Class } from '../types';
 
 interface TodoFormProps {
@@ -38,6 +38,8 @@ export function TodoForm({ editingTodo, onClose, classes }: TodoFormProps) {
 
   const createTodo = useCreateTodo();
   const updateTodo = useUpdateTodo();
+  const deleteTodo = useDeleteTodo();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isEditing = !!editingTodo;
 
@@ -124,7 +126,17 @@ export function TodoForm({ editingTodo, onClose, classes }: TodoFormProps) {
     setShowAdvanced(false);
   };
 
-  const isPending = createTodo.isPending || updateTodo.isPending;
+  const handleDelete = async () => {
+    if (!editingTodo) return;
+    try {
+      await deleteTodo.mutateAsync(editingTodo.id);
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete todo:', error);
+    }
+  };
+
+  const isPending = createTodo.isPending || updateTodo.isPending || deleteTodo.isPending;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
@@ -338,21 +350,58 @@ export function TodoForm({ editingTodo, onClose, classes }: TodoFormProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={!title.trim() || isPending}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isPending ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Task'}
-          </button>
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+          {/* Delete button (only when editing) */}
+          {isEditing ? (
+            showDeleteConfirm ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-red-600">Delete this task?</span>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleteTodo.isPending}
+                  className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleteTodo.isPending ? '...' : 'Yes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg"
+              >
+                <Trash2 size={16} />
+                Delete
+              </button>
+            )
+          ) : (
+            <div /> // Empty spacer when not editing
+          )}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!title.trim() || isPending}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isPending ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Task'}
+            </button>
+          </div>
         </div>
       </form>
     </div>
