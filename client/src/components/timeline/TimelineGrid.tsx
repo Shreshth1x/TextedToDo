@@ -10,7 +10,6 @@ interface TimelineGridProps {
 
 // Show all hours from midnight to 11 PM
 const START_HOUR = 0;
-const END_HOUR = 23;
 
 export function TimelineGrid({ timeSlots, selectedDate, onEditTodo }: TimelineGridProps) {
   const currentHour = new Date().getHours();

@@ -21,12 +21,12 @@ export function CurrentTimeIndicator({ selectedDate, startHour = 0 }: CurrentTim
     return () => clearInterval(interval);
   }, []);
 
-  // Scroll the indicator into view on mount
+  // Scroll the indicator into view on mount and when date changes
   useEffect(() => {
     if (indicatorRef.current && isSameDay(selectedDate, now)) {
       indicatorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [selectedDate]);
+  }, [selectedDate, now]);
 
   if (!isSameDay(selectedDate, now)) {
     return null;
